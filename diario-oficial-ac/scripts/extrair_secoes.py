@@ -11,6 +11,11 @@ paginas de cada secao alvo (padrao: GABINETE DA GOVERNADORA e SEICT).
         (ex.: GABINETE 1..7, porque POLICIA CIVIL comeca no topo da pag. 8)
       - cabecalho no MEIO da pagina -> fim = proxima (pagina compartilhada)
         (ex.: SEICT 26..29, porque SEJUSP comeca no meio da pag. 29)
+      - cabecalho no topo de uma coluna que nao a primeira, com texto da
+        secao antes dele -> tambem pagina compartilhada
+        (ex.: SEICT 51..53, SEJUSP no topo da coluna direita da pag. 53)
+    Se o cabecalho da propria secao alvo nao aparece na pagina do marcador,
+    sai um AVISO (secao provavelmente vazia).
 
 Etapa 2 — RECORTAR e FILTRAR. Reconstroi a ordem de leitura (coluna a coluna),
 descarta o que pertence a secoes vizinhas nas paginas compartilhadas, quebra o
@@ -228,6 +233,16 @@ def achar_cabecalho(pag, titulo):
     return _casar(ordenadas, alvo) or _casar(bruta, alvo)
 
 
+def texto_antes(pag, w):
+    """Ha texto de coluna antes do cabecalho 'w' na ordem de leitura?
+
+    Faixas cheias (banners, _col = -1) nao contam: abrem a pagina antes de
+    qualquer coluna. Tolera umas poucas palavras soltas (numero, rodape).
+    """
+    antes = [x for x in pag[0][:w["_i"]] if x["_col"] >= 0]
+    return len(antes) > 5
+
+
 # ------------------------------------------------------------------ intervalos
 def mapear_secoes(pdf, marcadores, alvos=None):
     """Calcula inicio/fim de cada marcador aplicando a regra de fronteira.
@@ -260,13 +275,46 @@ def mapear_secoes(pdf, marcadores, alvos=None):
                 fim = prox["page"]
                 motivo = (f"'{prox['title']}' comeca no MEIO da pag. {prox['page']} "
                           f"(y={y:.0f}) -> pagina compartilhada")
+            elif texto_antes(pag, w):
+                # topo de uma coluna que nao e a primeira: as colunas anteriores
+                # ainda sao da secao alvo (ex.: SEJUSP no topo da coluna direita
+                # da pag. 53 da ed. 14.367, com a SEICT na esquerda)
+                fim = prox["page"]
+                motivo = (f"'{prox['title']}' comeca no TOPO da coluna {w['_col'] + 1} "
+                          f"da pag. {prox['page']} (y={y:.0f}), com texto da secao "
+                          f"antes dele -> pagina compartilhada")
             else:
                 fim = prox["page"] - 1
                 motivo = (f"'{prox['title']}' comeca no TOPO da pag. "
                           f"{prox['page']} (y={y:.0f})")
-        mapa.append({"secao": m["title"], "nivel": m["nivel"],
-                     "inicio": m["page"], "fim": fim, "criterio": motivo})
+        item = {"secao": m["title"], "nivel": m["nivel"],
+                "inicio": m["page"], "fim": fim, "criterio": motivo}
+        if interessa:
+            aviso = conferir_cabecalho(pdf, m)
+            if aviso:
+                item["aviso"] = aviso
+        mapa.append(item)
     return mapa
+
+
+def conferir_cabecalho(pdf, m):
+    """Aviso se o cabecalho da secao nao aparece na pagina do marcador.
+
+    Ed. 14.366: o marcador do Gabinete apontava para a pag. 1, que so tinha
+    sumario e Policia Civil; sem o aviso, a saida vinha com atos de outros
+    orgaos como se fossem do Gabinete.
+    """
+    if achar_cabecalho(ordem_de_leitura(pdf.pages[m["page"] - 1]), m["title"]):
+        return None
+    aviso = (f"marcador de '{m['title']}' (pag. {m['page']}) sem cabecalho "
+             f"correspondente; secao provavelmente vazia")
+    if m["page"] > 1 and achar_cabecalho(ordem_de_leitura(pdf.pages[m["page"] - 2]),
+                                         m["title"]):
+        aviso = (f"marcador de '{m['title']}' (pag. {m['page']}) sem cabecalho "
+                 f"correspondente, mas o cabecalho esta na pag. {m['page'] - 1}; "
+                 f"marcador provavelmente uma pagina adiante -> conferir a pag. "
+                 f"{m['page'] - 1}")
+    return aviso
 
 
 def linhas_da_secao(pdf, info, prox_titulo):
@@ -479,9 +527,13 @@ def main():
                              for h in buscar_nome(lp, prim, tolerante=True)
                              if h["pagina"] not in pags]
 
+            if m.get("aviso"):
+                print(f"AVISO: {m['aviso']}.")
             print(f"  {m['secao']}: paginas {m['inicio']}-{m['fim']}  ({m['criterio']})")
             print(f"    atos: {len(pes)} de pessoal, de {len(atos)} no total")
+            aviso = f"  **AVISO: {m['aviso']}.**  \n" if m.get("aviso") else ""
             resumo.append(f"- **{m['secao']}** — paginas {m['inicio']}-{m['fim']}  \n"
+                          f"{aviso}"
                           f"  criterio: {m['criterio']}  \n"
                           f"  atos de pessoal: {len(pes)} de {len(atos)}  \n"
                           f"  arquivo: `{nome_arq}_atos.txt`")

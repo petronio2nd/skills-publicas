@@ -62,7 +62,8 @@ Pelos marcadores do PDF. O intervalo vai da página do marcador da seção até 
 
 | Cabeçalho da próxima seção | Fim da seção alvo |
 |---|---|
-| no **topo** da página (y < 100) | página anterior |
+| no **topo** da página (y < 100), sem texto de coluna antes dele | página anterior |
+| no **topo** de uma coluna que não a primeira, com texto antes dele | aquela mesma página (compartilhada) |
 | no **meio** da página | aquela mesma página (compartilhada) |
 
 Exemplos reais: ed. 14.315 (24/07/2026) — Gabinete = 1–7, porque Polícia Civil começa no topo da pág. 8; SEICT = 26–29, porque SEJUSP começa no meio da pág. 29. Ed. de 14/08/2026 — Gabinete = 1–74 (CGE no topo da 75), SEICT = 111–116 (SEJUSP no meio da 116).
@@ -75,6 +76,8 @@ Sempre reporte ao usuário os intervalos detectados e quantas páginas foram des
 
 - **Seção sem marcador** — é ignorada em silêncio pelo script, e o `AVISO:` sai no stdout. Leia o stdout. Em 30/07/2026 o Gabinete não tinha marcador e a seção inteira sumiu. Avise o usuário explicitamente quando isso acontecer.
 - **Marcador uma página adiante do conteúdo** — em 31/07/2026 (ed. 14.320-A) o marcador apontava o Gabinete para a pág. 2, mas os atos começavam na pág. 1; incluir a pág. 1 recuperou 6 decretos. Se a seção começa na pág. 2 ou 3, confira a página anterior antes de aceitar o intervalo.
+- **Marcador sem cabeçalho da seção** — o script confere se o cabeçalho da seção alvo aparece na página do marcador; se não aparece, sai `AVISO: marcador ... sem cabecalho correspondente; secao provavelmente vazia` no stdout e no `RESUMO.md`. Em 05/10/2026 (ed. 14.366) o marcador do Gabinete apontava para a pág. 1, que só tinha sumário e Polícia Civil; o `_completo.txt` saiu com portarias da PCAC e do CBMAC. Com esse aviso, confira o texto: se não houver ato do Gabinete, diga ao usuário que a seção está vazia nesta edição e não resuma o conteúdo alheio. Se o cabeçalho estiver na página anterior, o aviso diz isso (é o caso do marcador uma página adiante, acima).
+- **Cabeçalho da próxima seção no topo da coluna direita** — o y sozinho não basta. Em 06/10/2026 (ed. 14.367) o cabeçalho SEJUSP estava em y=49 da pág. 53, mas na coluna direita; a esquerda ainda era SEICT (fim da Portaria nº 121 e a Portaria nº 158). A regra antiga cortou a SEICT em 51–52 e perdeu as duas portarias. Agora o topo só leva o fim para a página anterior se não houver texto de coluna antes do cabeçalho na ordem de leitura; havendo, a página é compartilhada e o corte é feito no nível da palavra (SEICT = 51–53).
 - **Sem marcador algum no PDF** — o script aborta. Avise que a delimitação automática não é confiável.
 - **Faltando as duas seções** — o script imprime `NADA A EXTRAIR`. Responda apenas que a edição não traz atos do Gabinete nem da SEICT e encerre. **Não** varra o PDF por conta própria e **não** analise outras seções.
 
