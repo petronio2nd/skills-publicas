@@ -8,7 +8,7 @@ description: Inicia, retoma ou migra análises documentais longas pelo molde de 
 Esta skill é o procedimento de entrada. O método vive nos arquivos do caso e do molde;
 se houver divergência, esses arquivos vencem.
 
-- Molde mestre: `D:\20-VIDAIA\00-CODIGOS\modelo-atual`
+- Molde mestre: `D:\20-VIDAIA\00-REPOS\modelo-atual`
 - Script: `<molde>\bin\novo-caso.py`
 
 ## Antes de agir
@@ -48,7 +48,7 @@ documento ou conclusão.
 Execute sem continuação específica de shell:
 
 ```text
-python "D:\20-VIDAIA\00-CODIGOS\modelo-atual\bin\novo-caso.py" novo --destino "<pasta>" --id "<id>" --objetivo "<objetivo>" --pergunta "<pergunta>" --produto "<produto>" --fontes "<fontes>" --prazo "<prazo opcional>"
+python "D:\20-VIDAIA\00-REPOS\modelo-atual\bin\novo-caso.py" novo --destino "<pasta>" --id "<id>" --objetivo "<objetivo>" --pergunta "<pergunta>" --produto "<produto>" --fontes "<fontes>" --prazo "<prazo opcional>"
 ```
 
 O script cria a cópia autossuficiente, instancia `_TEMPLATE-SEI`, configura o handoff,
@@ -76,7 +76,7 @@ veredito rastreável.
 Nunca atualize automaticamente. Primeiro execute apenas a simulação:
 
 ```text
-python "D:\20-VIDAIA\00-CODIGOS\modelo-atual\bin\novo-caso.py" migrar --caso "<pasta do caso>"
+python "D:\20-VIDAIA\00-REPOS\modelo-atual\bin\novo-caso.py" migrar --caso "<pasta do caso>"
 ```
 
 Mostre as diferenças e aguarde aprovação expressa. Só então repita com `--aplicar`.
