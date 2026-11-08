@@ -1,10 +1,17 @@
-# Liga cada skill deste repositório às pastas de skills do Claude Code e do Codex por junction.
+# Liga cada skill deste repositório à pasta de skills do Claude Code por junction (o OpenCode lê a mesma pasta).
 # Idempotente: pula o que já aponta para cá e recusa pasta real no caminho (não sobrescreve nada).
 # Uso: powershell -ExecutionPolicy Bypass -File .\ligar.ps1
 
+param([ValidateSet('claude','codex','todos')][string]$Cliente = 'claude', [string[]]$Skill = @())
 $repo = $PSScriptRoot
-$destinos = @("$env:USERPROFILE\.claude\skills", "$env:USERPROFILE\.codex\skills")
+$destinos = @()
+if ($Cliente -in 'claude','todos') { $destinos += "$env:USERPROFILE\.claude\skills" }
+if ($Cliente -in 'codex','todos') { $destinos += "$env:USERPROFILE\.agents\skills" }
 $skills = Get-ChildItem $repo -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'SKILL.md') }
+if ($Skill.Count) {
+  foreach ($nomeSkill in $Skill) { if ($nomeSkill -notin $skills.Name) { throw "Skill inexistente: $nomeSkill" } }
+  $skills = @($skills | Where-Object { $_.Name -in $Skill })
+}
 
 foreach ($base in $destinos) {
   if (-not (Test-Path $base)) { New-Item -ItemType Directory -Path $base | Out-Null }

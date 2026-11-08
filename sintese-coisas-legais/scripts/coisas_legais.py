@@ -10,15 +10,21 @@ Comandos:
   legenda ARQUIVO   texto de um .srt ou .vtt, sem números, tempos, marcas nem
                     repetição, com um marcador [mm:00] a cada minuto e, no fim,
                     [fim mm:ss] com o tempo da última fala
+  transcrever MIDIA transcreve um vídeo ou áudio sem legenda pelo Gemini do agy
+                    (fonte Antigravity) e grava "<nome> - transcrição.md" ao
+                    lado dele, no formato do `legenda`: [mm:00] a cada bloco de
+                    5 min, pelo tempo real, e [fim mm:ss] no fim
   arquivar ITEM     move o item para _lido, só se a sintese.md já existir e o
                     destino ainda não existir
 
-Só o `arquivar` mexe em disco, e só dentro de coisas-legais. Nada é apagado.
-Ignora _lido e tudo o que começa com "_".
+Só o `transcrever` (a transcrição) e o `arquivar` mexem em disco, e só dentro de
+coisas-legais. Nada é apagado nem sobrescrito. Ignora _lido e tudo o que começa
+com "_".
 
 Uso:
   python coisas_legais.py listar
   python coisas_legais.py legenda "D:\\00-ENTRADA\\coisas-legais\\<pasta>\\video.pt.srt"
+  python coisas_legais.py transcrever "D:\\00-ENTRADA\\coisas-legais\\<pasta>\\video.mp4"
   python coisas_legais.py arquivar "<nome da pasta ou do arquivo>"
 """
 
@@ -26,7 +32,10 @@ import argparse
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import time
 
 BASE = r"D:\00-ENTRADA\coisas-legais"
@@ -234,6 +243,186 @@ def cmd_legenda(caminho):
     print(" ".join(partes).strip())
 
 
+# --- transcrever: Gemini pelo agy --------------------
+
+MODELO_AGY = "gemini-3.8-flash-low"
+BLOCO_S = 300  # áudio cortado em blocos de 5 min: tempo real nas marcas e prazo curto por chamada
+PRAZO_S = 240
+SUFIXO_TRANSCRICAO = " - transcrição.md"
+ESQUEMA = {
+    "type": "object",
+    "properties": {
+        "conteudo": {"type": "string", "enum": ["fala", "silencio", "ruido", "musica", "inaudivel"],
+                     "description": "o que de fato se ouve no arquivo"},
+        "transcricao": {"type": "string", "description": "só a fala ouvida; vazio se conteudo não for fala"},
+    },
+    "required": ["conteudo", "transcricao"],
+}
+PROMPT = (
+    "Ouça o arquivo de áudio audio.mp3 nesta pasta. Primeiro diga o que de fato se ouve nele: "
+    "fala, silêncio, ruído, música ou inaudível. Se houver fala, transcreva-a no idioma em que foi "
+    "falada, palavra por palavra, com pontuação e parágrafos, sem marcar tempo nem quem fala. Use a "
+    "grafia correta de nomes próprios e de produtos quando forem ditos, sem acrescentar nada que não "
+    "foi dito. Devolva só a transcrição, sem comentários e sem título. Se não houver fala, a "
+    "transcrição fica vazia. Nunca escreva fala que você não ouviu."
+)
+RE_COTA = re.compile(r"quota|exhaust|rate.?limit|\b429\b|too many requests|usage limit|limit reached|"
+                     r"out of credits|cota", re.IGNORECASE)
+RE_LOGIN = re.compile(r"not logged in|log ?in to|sign ?in|unauthenticated|\b401\b", re.IGNORECASE)
+
+
+def recusar_e_sair(alvo, motivo, codigo=1):
+    emitir({"recusado": alvo, "motivo": motivo})
+    sys.exit(codigo)
+
+
+def caminhos_fontes():
+    aqui = os.path.dirname(os.path.abspath(__file__))
+    casa = os.path.expanduser("~")
+    return [os.path.normpath(os.path.join(aqui, "..", "..", "dupla", "scripts", "fontes.ps1")),
+            os.path.join(casa, ".agents", "skills", "dupla", "scripts", "fontes.ps1"),
+            os.path.join(casa, ".claude", "skills", "dupla", "scripts", "fontes.ps1")]
+
+
+def conferir_fonte(alvo, arquivo_fontes):
+    """Trava global de fontes (dupla/scripts/fontes.ps1). Estado ilegível conta como travado."""
+    ps1 = next((c for c in caminhos_fontes() if os.path.isfile(c)), None)
+    if not ps1:
+        recusar_e_sair(alvo, "⚠️ controle de fontes (fontes.ps1) não encontrado; consumo bloqueado.", 3)
+    cmd = ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ps1, "-Json"]
+    if arquivo_fontes:
+        cmd += ["-Arquivo", arquivo_fontes]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                              timeout=60, stdin=subprocess.DEVNULL)
+        estado = ultimo_json(proc.stdout)
+    except (OSError, subprocess.TimeoutExpired):
+        estado = None
+    if not estado or estado.get("valido") is not True:
+        recusar_e_sair(alvo, "⚠️ estado das fontes ilegível ou inválido; consumo bloqueado.", 3)
+    if "antigravity" in (estado.get("bloqueadas") or []):
+        recusar_e_sair(alvo, "⚠️ Antigravity (agy) travado por você. Sem transcrição: o item fica na raiz.", 3)
+
+
+def ultimo_json(saida):
+    """O agy e o PowerShell podem escrever linhas antes do JSON final."""
+    for linha in reversed((saida or "").splitlines()):
+        linha = linha.strip()
+        if linha.startswith("{"):
+            try:
+                dados = json.loads(linha)
+            except ValueError:
+                continue
+            if isinstance(dados, dict):
+                return dados
+    return None
+
+
+def achar_agy():
+    achado = shutil.which("agy")
+    if achado:
+        return achado
+    local = os.path.join(os.environ.get("LOCALAPPDATA", ""), "agy", "bin", "agy.exe")
+    return local if os.path.isfile(local) else None
+
+
+def transcrever_bloco(agy, pasta):
+    """Uma chamada ao agy numa pasta que só tem o áudio. Devolve (conteudo, texto)."""
+    cmd = [agy, "-p", PROMPT, "--model", MODELO_AGY, "--mode", "plan", "--sandbox",
+           "--disable-slash-commands", "--print-timeout", f"{PRAZO_S}s", "--output-format", "json",
+           "--json-schema", json.dumps(ESQUEMA, ensure_ascii=False)]
+    try:
+        proc = subprocess.run(cmd, cwd=pasta, capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", timeout=PRAZO_S + 30, stdin=subprocess.DEVNULL)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"agy não respondeu em {PRAZO_S} s")
+    except OSError as erro:
+        raise RuntimeError(f"agy não abriu ({agy}): {erro}")
+    dados = ultimo_json(proc.stdout) or {}
+    est = dados.get("structured_output")
+    if dados.get("status") == "SUCCESS" and isinstance(est, dict) and isinstance(est.get("transcricao"), str):
+        return est.get("conteudo"), est["transcricao"].strip()
+    tudo = f"{proc.stdout}\n{proc.stderr}"
+    motivo = " ".join(str(dados.get("error") or tudo.strip()[-300:]).split())[:300]
+    if RE_COTA.search(tudo):
+        raise RuntimeError(f"cota do agy esgotada: {motivo}")
+    if RE_LOGIN.search(tudo):
+        raise RuntimeError(f"agy sem login (rode agy no terminal e entre na conta): {motivo}")
+    raise RuntimeError(f"agy falhou (rc={proc.returncode}): {motivo or 'saída vazia'}")
+
+
+def cmd_transcrever(base, caminho, arquivo_fontes):
+    midia = os.path.abspath(caminho)
+    try:
+        rel = os.path.relpath(midia, base)
+    except ValueError:  # outro disco
+        rel = ".."
+    if rel.startswith("..") or rel.split(os.sep)[0].startswith("_"):
+        recusar_e_sair(caminho, "só transcrevo item da raiz de coisas-legais (fora de _lido e das pastas com _)")
+    if not os.path.isfile(midia):
+        recusar_e_sair(caminho, "arquivo não encontrado")
+    if tipo_de(os.path.basename(midia)) != "midia":
+        recusar_e_sair(caminho, "não é vídeo nem áudio")
+    destino = os.path.splitext(midia)[0] + SUFIXO_TRANSCRICAO
+    if os.path.exists(destino):
+        recusar_e_sair(caminho, f"já existe {destino}; não sobrescrevo")
+    conferir_fonte(caminho, arquivo_fontes)
+    agy, ffmpeg = achar_agy(), shutil.which("ffmpeg")
+    ffprobe = shutil.which("ffprobe")
+    if not (agy and ffmpeg and ffprobe):
+        falta = [n for n, c in (("agy", agy), ("ffmpeg", ffmpeg), ("ffprobe", ffprobe)) if not c]
+        recusar_e_sair(caminho, f"não achei {', '.join(falta)} no PATH")
+    try:
+        total = float(subprocess.run([ffprobe, "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
+                                      midia], capture_output=True, text=True, check=True).stdout.strip())
+    except (subprocess.CalledProcessError, ValueError):
+        recusar_e_sair(caminho, "o ffprobe não leu a duração (arquivo sem áudio ou corrompido?)")
+
+    temp = tempfile.mkdtemp(prefix="cl-audio-")
+    try:
+        cortes = os.path.join(temp, "cortes")
+        os.makedirs(cortes)
+        subprocess.run([ffmpeg, "-v", "error", "-i", midia, "-vn", "-ac", "1", "-b:a", "64k", "-f", "segment",
+                        "-segment_time", str(BLOCO_S), "-reset_timestamps", "1",
+                        os.path.join(cortes, "bloco%03d.mp3")], check=True, stdin=subprocess.DEVNULL)
+        blocos = sorted(os.listdir(cortes))
+        if not blocos:
+            recusar_e_sair(caminho, "o ffmpeg não achou áudio no arquivo")
+        partes, com_fala = [], 0
+        for i, nome in enumerate(blocos):
+            pasta = os.path.join(temp, f"b{i:03d}")  # o agy só enxerga o áudio deste bloco
+            os.makedirs(pasta)
+            os.replace(os.path.join(cortes, nome), os.path.join(pasta, "audio.mp3"))
+            try:
+                conteudo, texto = transcrever_bloco(agy, pasta)
+            except RuntimeError as erro:
+                recusar_e_sair(caminho, f"bloco {i + 1} de {len(blocos)}: {erro}. Nada foi gravado.")
+            inicio = i * BLOCO_S // 60
+            if conteudo == "fala" and texto:
+                com_fala += 1
+                partes.append(f"[{inicio:02d}:00] {texto}")
+            else:
+                partes.append(f"[{inicio:02d}:00] ({conteudo or 'sem fala'})")
+    except subprocess.CalledProcessError as erro:
+        recusar_e_sair(caminho, f"o ffmpeg falhou (rc={erro.returncode})")
+    finally:
+        shutil.rmtree(temp, ignore_errors=True)
+    if not com_fala:
+        recusar_e_sair(caminho, "o Gemini não ouviu fala em nenhum bloco. Nada foi gravado.")
+
+    pasta_item = os.path.dirname(midia)
+    titulo = os.path.basename(pasta_item) if pasta_item != base else os.path.splitext(os.path.basename(midia))[0]
+    cabecalho = (f"# Transcrição — {titulo}\n\n"
+                 f"> Gemini ({MODELO_AGY}) pelo agy, de `{os.path.basename(midia)}`, em "
+                 f"{time.strftime('%Y-%m-%d')} · duração {duracao(total)} · sem marcar quem fala\n"
+                 f"> Transcrição automática: pode errar palavra, nome e número. [mm:00] marca o início "
+                 f"de cada bloco de {BLOCO_S // 60} min, pelo tempo real do áudio.\n\n")
+    with open(destino, "x", encoding="utf-8") as f:  # "x": nunca sobrescreve
+        f.write(cabecalho + "\n\n".join(partes) + f"\n\n[fim {duracao(total)}]\n")
+    emitir({"transcrito": os.path.basename(midia), "para": destino, "duracao": duracao(total),
+            "blocos": len(blocos)})
+
+
 def cmd_arquivar(base, nome):
     def recusar(motivo):
         emitir({"recusado": nome, "motivo": motivo})
@@ -269,6 +458,9 @@ def main():
     sub.add_parser("listar")
     sub.add_parser("lidos")
     sub.add_parser("legenda").add_argument("arquivo")
+    t = sub.add_parser("transcrever")
+    t.add_argument("midia")
+    t.add_argument("--arquivo-fontes", default="", help=argparse.SUPPRESS)  # só para testar a recusa
     sub.add_parser("arquivar").add_argument("item")
     a = p.parse_args()
     base = os.path.abspath(a.base)
@@ -278,6 +470,8 @@ def main():
         cmd_lidos(base)
     elif a.comando == "legenda":
         cmd_legenda(a.arquivo)
+    elif a.comando == "transcrever":
+        cmd_transcrever(base, a.midia, a.arquivo_fontes)
     else:
         cmd_arquivar(base, a.item)
 

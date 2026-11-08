@@ -12,7 +12,7 @@ O Pepita é um banco SQLite derivado (`pepita.db`) que roda na distro WSL `ubunt
 ssh wsl pepita <comando> [opções]
 ```
 
-Projeto e documentação: `D:\20-VIDAIA\00-CODIGOS\projeto-pepita` (`AGENTS.md`, `docs/`).
+Projeto e documentação: `D:\20-VIDAIA\00-REPOS\pepita` (`AGENTS.md`, `docs/`).
 
 ## Comandos liberados (todos só leitura)
 
@@ -79,4 +79,4 @@ Tipos de entidade: `cpf`, `cnpj` (só dígitos), `valor` (em centavos), `data` (
 
 ## Quando o documento não está no Pepita
 
-`D:\00-ENTRADA` é ingerida sozinha a cada 3 h (tarefa `Pepita\Ingestao ENTRADA`); arquivo salvo ali há menos tempo pode ainda não aparecer. As outras raízes não se atualizam sozinhas. Se o arquivo existe no disco mas não aparece (ou aparece versão antiga), diga isso ao Pet. Só rode a ingestão manual quando o Pet pedir, com `C:\Users\petro\AppData\Local\Programs\Python\Python313\python.exe D:\20-VIDAIA\00-CODIGOS\projeto-pepita\windows\entrada_agendada.py "<caminho do arquivo ou pasta>"`.
+`D:\00-ENTRADA` é ingerida sozinha a cada 3 h (tarefa `Pepita\Ingestao ENTRADA`); arquivo salvo ali há menos tempo pode ainda não aparecer. As outras raízes não se atualizam sozinhas. Se o arquivo existe no disco mas não aparece (ou aparece versão antiga), diga isso ao Pet. Só rode a ingestão manual quando o Pet pedir, com `C:\Users\petro\AppData\Local\Programs\Python\Python313\python.exe D:\20-VIDAIA\00-REPOS\pepita\windows\entrada_agendada.py "<caminho do arquivo ou pasta>"`.

@@ -35,7 +35,9 @@ Uma linha dizendo o que foi ignorado e por quê (repetições, tangentes, desaba
 
 ## Encerramento obrigatório: Síntese VIDA-IA
 
-Toda destilação termina gerando a síntese padronizada e **salvando no Notion, na biblioteca VIDA-IA** (página filha da página/base "VIDA-IA"). Se o conector Notion não estiver disponível ou falhar, entregue o bloco pronto para copiar e avise que não foi salvo automaticamente.
+Toda destilação termina gerando a síntese padronizada (template abaixo) e **salvando no Notion, como linha da base VIDA-IA** (fonte de dados `collection://<ID-DA-BASE>`; abra pelo id, não pelo nome). Propriedades: **Nome** = o título da síntese, sem o `# `; **Tipo** = destilador; **Status** = arquivado ou tem pendências; **Data** = a do título; **Ambiente** = ver abaixo; **Tarefa no tik** = o link da tarefa, se houver. O corpo da síntese vai no conteúdo da linha. Se a base não abrir pelo id, crie a síntese como página filha da página 📍 Gerencia (id <ID-DA-PAGINA>) e avise que ela precisa entrar na base. Se o conector Notion não estiver disponível ou falhar, entregue o bloco pronto para copiar e avise que não foi salvo automaticamente.
+
+**Ambiente:** o da pasta da sessão, pelo seu mapa de pastas para ambientes; sem como saber, o ambiente padrão.
 
 Template exato:
 
@@ -50,7 +52,7 @@ Template exato:
 **Status:** arquivado | tem pendências
 ```
 
-Antes de salvar, pergunte apenas: "Quer ajustar algo na síntese antes de eu salvar no VIDA-IA?" — uma pergunta, não um questionário.
+Antes de salvar, pergunte apenas: "Quer ajustar algo na síntese antes de eu salvar no VIDA-IA? Vai em <Ambiente>." — uma pergunta, não um questionário.
 
 ## O que este modo NÃO faz
 

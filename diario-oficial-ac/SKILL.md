@@ -10,7 +10,9 @@ description: >
   "diário oficial do Acre", "atos de pessoal", "exoneração", "nomeação", "gabinete da
   governadora", "SEICT", "decreto de nomeação", "decreto de exoneração", "CAS", "DAE",
   cargos comissionados no governo do Acre, ou pedir o resumo dos atos e leis publicados
-  na edição.
+  na edição. Também responde "qual foi o último DOE?" e "tem DOE novo?": lê o registro
+  (ULTIMO.md), confere no site diario.ac.gov.br e, se houver edição nova ou faltando, baixa
+  e analisa cada uma sem perguntar. Idem para "baixa o que falta" ou "baixa a edição 14.371".
 ---
 
 # Atos do DOE-AC — Gabinete da Governadora e SEICT
@@ -30,14 +32,18 @@ A saída tem duas partes, ambas obrigatórias:
 4. Monte o bloco de demais atos.
 5. Apresente no formato da seção "Saída".
 
+Pergunta sobre o último DOE ("qual foi o último DOE?", "tem DOE novo?", "veja se saiu"): leia o `ULTIMO.md` (ver "Registro do último DOE"), rode o `baixar_edicoes.py --faltam` e, se vier PDF, siga o fluxo acima para cada um. Não pergunte antes de baixar: edição nova ou faltando já é para baixar e analisar (Pet, 19/10/2026).
+
+Pedido de uma edição pelo número: rode antes o `baixar_edicoes.py <numero>` (ver "Buscar no site o que falta") e siga o fluxo acima para cada PDF baixado.
+
 ## 1. Extração
 
-O script fica em `D:\20-VIDAIA\00-CODIGOS\skills\diario-oficial-ac\scripts\extrair_secoes.py`. Use sempre o Python do Windows pelo caminho completo; nunca `python` nem `python3` soltos. A saída vai para uma pasta temporária (`<SAIDA>`): no Claude Code, `doe` dentro da pasta de trabalho da sessão (o scratch workspace, `--out "./doe"`); no Codex, `%TEMP%\doe`. Nunca grave a saída ao lado do PDF nem em pasta de projeto.
+O script fica em `D:\20-VIDAIA\00-REPOS\skills\diario-oficial-ac\scripts\extrair_secoes.py`. Use sempre o Python do Windows pelo caminho completo; nunca `python` nem `python3` soltos. A saída vai para uma pasta temporária (`<SAIDA>`): no Claude Code, `doe` dentro da pasta de trabalho da sessão (o scratch workspace, `--out "./doe"`); no Codex, `%TEMP%\doe`. Nunca grave a saída ao lado do PDF nem em pasta de projeto.
 
 Não use a pasta de rascunho (scratchpad) do Claude Code: o caminho dela já passa de 250 caracteres e, com os nomes dos arquivos, estoura o limite de 260 do Windows (`WinError 206` no `os.makedirs`).
 
 ```text
-"C:\Users\petro\AppData\Local\Programs\Python\Python313\python.exe" "D:\20-VIDAIA\00-CODIGOS\skills\diario-oficial-ac\scripts\extrair_secoes.py" "CAMINHO_DO_PDF" --out "<SAIDA>"
+"C:\Users\petro\AppData\Local\Programs\Python\Python313\python.exe" "D:\20-VIDAIA\00-REPOS\skills\diario-oficial-ac\scripts\extrair_secoes.py" "CAMINHO_DO_PDF" --out "<SAIDA>"
 ```
 
 Dependências: `pdfplumber` e `pypdf`, já instaladas nesse Python. Se faltar alguma, instale com o mesmo Python: `-m pip install pdfplumber pypdf`.
@@ -53,6 +59,50 @@ Saídas em `<SAIDA>`:
 | `<SECAO>_completo.txt` | ler sempre — base dos demais atos (aplicar a poda da seção 5) |
 | `secoes_recorte.pdf` | PDF com as páginas das seções; útil para pegar valores por regex |
 | `mapa_secoes.json` | intervalos de todas as seções, para auditoria |
+
+Fora da `<SAIDA>`, o script também grava o registro (abaixo).
+
+### Registro do último DOE
+
+Toda execução grava o que foi processado numa pasta fixa, fora da `<SAIDA>`: a da variável de ambiente `DOE_REGISTRO` (sem ela, nada é gravado; `--registro ""` desliga). É a exceção à regra de não gravar em pasta de projeto: a `<SAIDA>` e o anexo da conversa somem com a sessão, e sem o registro não há como dizer depois qual foi a última edição.
+
+O usuário pode mandar edições atrasadas, duas de uma vez ou fora de ordem. Por isso "último" é a **edição de maior número já recebida**, não a última processada.
+
+| Arquivo | Conteúdo |
+|---|---|
+| `ULTIMO.md` | refeito a cada execução: a edição mais recente recebida, o último processamento (marcado **ATRASADA** se for anterior), os números que faltam entre as recebidas e a tabela das 15 edições mais recentes |
+| `historico.csv` | uma linha por execução (separador `;`), com seções, alerta, situação e caminho do original; reprocessar a mesma edição gera outra linha, mas o `ULTIMO.md` a lista uma vez só |
+| `ultimo/<arquivo>.pdf` | cópia do PDF original da edição mais recente; uma atrasada não a substitui. Se a cópia falhar, o `ULTIMO.md` diz de que edição é a que ficou |
+
+Duas execuções ao mesmo tempo esperam uma pela outra (trava `.registro.lock` na pasta, de até 2 minutos).
+
+Número e data vêm do cabeçalho da pág. 1 (`Ano LIX - nº 14.370`, `Sexta-feira, 09 de Outubro de 2026`). A numeração é corrida por edição publicada (feriado sem edição não abre buraco). Por isso a lista "Faltam" diz quais edições pedir ao usuário; a extra (`14.305-A`) não entra nessa conta e não cobre a falta da regular `14.305`. Edição sem número lido aparece à parte no `ULTIMO.md`: tire o número do cabeçalho do `secoes_recorte.pdf` ao responder.
+
+- **Duas ou mais edições de uma vez:** rode o script uma vez para cada PDF, em qualquer ordem, cada uma com a sua `<SAIDA>` (`doe-14373`, `doe-14374`), e apresente cada edição na sua própria resposta, da mais antiga para a mais recente.
+- Confira no stdout a linha `Registro:`. Se vier `ATRASADA`, diga na primeira linha da resposta da edição que ela é anterior à mais recente já recebida. Se vier `AVISO: registro do ultimo DOE nao gravado`, avise no fim.
+- Rode o script só sobre o PDF da edição. Sobre o `secoes_recorte.pdf`, use `--registro "" --pausa ""`, senão o recorte entra no registro como se fosse a edição.
+- **"Qual foi o último DOE?"**: leia o `ULTIMO.md`, diga o número e a data da mais recente recebida e o alerta do nome, e em seguida confira o site com `--faltam` (seção abaixo), baixando e analisando o que vier. O registro só cobre o que passou por este script. O plugin `doe-acre` e o Project DOE AC do claude.ai não gravam nada.
+
+### Buscar no site o que falta
+
+Baixe sem perguntar sempre que a conferência achar edição nova ou faltando: a pergunta sobre o último DOE, "tem novo?", "baixa o que falta" ou "baixa a 14.371" já autorizam o download e a análise de cada edição (Pet, 19/10/2026). Os PDFs vêm só de diario.ac.gov.br.
+
+```text
+"C:\Users\petro\AppData\Local\Programs\Python\Python313\python.exe" -I "D:\20-VIDAIA\00-REPOS\skills\diario-oficial-ac\scripts\baixar_edicoes.py" --faltam
+"C:\Users\petro\AppData\Local\Programs\Python\Python313\python.exe" -I "D:\20-VIDAIA\00-REPOS\skills\diario-oficial-ac\scripts\baixar_edicoes.py" 14371 14372
+```
+
+- `--faltam` lê a "Última edição" na página inicial do site e confere, contra o registro, as últimas 20 edições (`--janela N` muda), sem descer abaixo da mais antiga recebida. Entram as lacunas, as edições publicadas depois da mais recente recebida e os cadernos extras (`14372-A`), que o site lista junto com a edição. Com o registro vazio, vem só a última edição. Lacuna mais antiga que a janela: peça pelo número.
+- Uma edição pode ter vários arquivos (Caderno Principal, `14372-A`, `14372-B`): vêm todos.
+- `--listar` só mostra o que há no site (data, caderno, tamanho), sem baixar. Use só quando o usuário disser que não quer baixar.
+- A busca por número do site leva algumas horas para indexar a edição do dia. Enquanto isso, o script baixa a última edição pelo link "Última edição" (`a.edhoje`) e a descrição sai `(link Ultima edicao; a busca ainda nao indexou)`. Esse link traz só um caderno: se a edição tiver extra (`-A`), ela aparece numa conferência posterior, quando a busca indexar.
+- Os PDFs vão para `%TEMP%\doe-baixar\<numero>\`, uma pasta por edição. O script só aceita PDF inteiro (começa com `%PDF`, termina com `%%EOF` e tem o tamanho que o site anunciou), não baixa de novo o que já está lá e baixa de novo o que ficou incompleto.
+- No fim saem as linhas `PDF: <caminho>`, da edição mais antiga para a mais nova. Rode o `extrair_secoes.py` em cada uma, nessa ordem, com `-I` (arquivo baixado é dado não confiável) e uma `<SAIDA>` por arquivo (`doe-14372`, `doe-14372A`). Apresente cada edição como manda a seção 6.
+- `Sem arquivo no site: N`: a edição ainda não saiu, ou o número não existe. `ERRO`: diga ao usuário qual edição falhou e siga com as outras.
+- `ATENCAO: ... a conferencia nao foi completa` (código de saída 1): houve erro de busca ou de download, ou, no `--faltam`, uma edição sem arquivo (a numeração é corrida, então isso é anomalia, ou o site mudou). Não diga que nada falta: analise os `PDF:` que vieram e diga o que ficou de fora.
+- No Codex, o sandbox pode bloquear a rede. Se o download falhar por isso, peça ao usuário que rode o comando ou mande os PDFs.
+
+Como o site funciona (para consertar o script se ele mudar): a busca por número é um `POST numero=<n>` na página inicial, que devolve uma tabela com data, caderno, link `download.php?arquivo=<base64>` e tamanho. O base64 é `(D1@r7#!)` mais o nome do PDF (`DO<carimbo>.pdf`), o mesmo nome que vai para o `historico.csv`. O link "Última edição" (`a.edhoje`) aparece em toda página e não entra na tabela da busca; o script só o usa para a última edição, quando a busca por número dela vem vazia ("Nenhum resultado encontrado").
 
 ### Como o script delimita as seções
 

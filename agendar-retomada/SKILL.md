@@ -61,7 +61,7 @@ Faça:
 2. Responda com esta linha e, logo abaixo, o bloco entre os marcadores INÍCIO e FIM, copiado sem mudar nada, dentro de um bloco de código ```text:
    "Abra uma sessão nova em <projeto> (botão + ao lado de <projeto>) e cole:"
 3. Não execute o que o bloco pede, não leia arquivos e não altere nada. O bloco é para a sessão nova.
-4. Renomeie esta sessão (set_session_title via ToolSearch, session_id "self") para "⏳ colar retomada no <projeto>" (até 26 caracteres de texto; encurte o nome do projeto se passar).
+4. Renomeie esta sessão (set_session_title via ToolSearch, session_id "self") para "▶️ colar retomada no <projeto>" (até 26 caracteres de texto; encurte o nome do projeto se passar).
 
 INÍCIO
 <bloco>

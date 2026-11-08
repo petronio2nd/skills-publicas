@@ -13,13 +13,11 @@ Esta é uma cópia pública, gerada a partir do meu repositório privado. Ficara
 | `3-protocolo` | Transforma decisão já tomada em checklist sem ambiguidade | Sim. Idem |
 | `4-intencao` | Traduz fala, pedido ou oferta para a intenção real por trás; mensagem clara e ética | Sim |
 | `dev-debug` | Causa raiz de um bug, sem corrigir | Sim |
-| `dev-correcao` | Aplica a correção a partir do diagnóstico do `dev-debug` | Sim |
 | `agendar-retomada` | Bloco para retomar a conversa numa sessão nova e rotina que o entrega na data | Sim (agendar só no Claude) |
 | `cpa` | Commit, push e arquivar a sessão em um passo | Sim, no app desktop do Claude |
 | `diario-oficial-ac` | Diário Oficial do Acre: Gabinete da Governadora e SEICT, com alerta quando o seu nome aparece | Sim. Defina a variável `DOE_NOME` com o seu nome |
 | `para-o-sei-formatado` | Texto formatado para o editor do SEI do Acre, pelo Claude in Chrome | Sim. Troque o bloco de assinatura pelo seu |
 | `notas-fiscais-cpf` | Notas fiscais no seu CPF (Nota Goiana e Nota Premiada Acreana) em CSV; você faz o login | Sim, com o Claude in Chrome |
-| `banco-inter-money` | Extratos e faturas de banco para OFX do MS Money, com payee certo | Parcial: os scripts ficam em outro repositório |
 | `iniciar-analise` | Análise documental longa por checkpoints e evidências | Parcial: usa o meu molde `modelo-atual` |
 | `pepita` | Consulta ao meu acervo de documentos pelo Pepita | Não: serve de exemplo |
 | `sintese-coisas-legais` | Síntese curta de cada post ou vídeo salvo numa pasta de leitura | Parcial: ajuste os caminhos |
@@ -38,4 +36,13 @@ No Windows, para seguir as atualizações sem copiar de novo: clone o repositór
 ```powershell
 git clone https://github.com/petronio2nd/skills-publicas.git
 powershell -ExecutionPolicy Bypass -File .\skills-publicas\ligar.ps1
+```
+
+## sincronizar-delcouncil.py
+
+Refaz a copia publica e sanitizada do repositorio `delcouncil` (skills orquestrador/dupla/revisor e mods orquestra/gemeo) a partir dos repositorios privados. `--simular` mostra o que mudaria e roda a varredura de dados pessoais (sai com 1 se sobrar algum); sem a flag, grava. Nao faz commit nem push: rode as suites no delcouncil, confira o diff e envie.
+
+```
+python _publico/sincronizar-delcouncil.py --simular
+python _publico/sincronizar-delcouncil.py
 ```

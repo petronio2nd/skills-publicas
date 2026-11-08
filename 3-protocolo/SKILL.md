@@ -39,7 +39,9 @@ Se a decisão de origem não estiver clara, faça no máximo 2 perguntas (o que 
 
 ## Encerramento obrigatório: Síntese VIDA-IA
 
-Todo protocolo termina gerando a síntese padronizada e **salvando no Notion, na biblioteca VIDA-IA** (página filha da página/base "VIDA-IA"), com o protocolo completo dentro da página. Se o conector Notion não estiver disponível ou falhar, entregue o bloco pronto para copiar e avise que não foi salvo automaticamente.
+Todo protocolo termina gerando a síntese padronizada (template abaixo) e **salvando no Notion, como linha da base VIDA-IA** (fonte de dados `collection://<ID-DA-BASE>`; abra pelo id, não pelo nome). Propriedades: **Nome** = o título da síntese, sem o `# `; **Tipo** = protocolo; **Status** = em execução, concluído ou pausado (suspenso, se parou sem data para voltar); **Data** = a do título; **Ambiente** = ver abaixo; **Tarefa no tik** = o link da tarefa, se houver. O corpo da síntese, com o protocolo completo, vai no conteúdo da linha. Se a base não abrir pelo id, crie a síntese como página filha da página 📍 Gerencia (id <ID-DA-PAGINA>) e avise que ela precisa entrar na base. Se o conector Notion não estiver disponível ou falhar, entregue o bloco pronto para copiar e avise que não foi salvo automaticamente.
+
+**Ambiente:** o da pasta da sessão, pelo seu mapa de pastas para ambientes; sem como saber, o ambiente padrão.
 
 Template exato:
 
@@ -50,10 +52,10 @@ Template exato:
 **Gatilho:** [quando começa]
 **Nº de passos:** [n]
 [protocolo completo aqui]
-**Status:** em execução | concluído | pausado
+**Status:** em execução | concluído | pausado | suspenso
 ```
 
-Antes de salvar, pergunte apenas: "Quer ajustar algo antes de eu salvar no VIDA-IA?" — uma pergunta, não um questionário.
+Antes de salvar, pergunte apenas: "Quer ajustar algo antes de eu salvar no VIDA-IA? Vai em <Ambiente>." — uma pergunta, não um questionário.
 
 ## O que este modo NÃO faz
 

@@ -1,6 +1,6 @@
 ---
 name: iniciar-analise
-description: Inicia, retoma ou migra análises documentais longas pelo molde de checkpoints e evidências. Use para novo caso, análise aprofundada de processo ou pasta de documentos, retomada e migração metodológica. Não use para leitura pontual nem conversão de arquivo.
+description: Inicia, retoma ou migra análises documentais longas pelo molde de checkpoints e evidências. Use para novo caso, raio-X jurídico, análise aprofundada de processo ou contrato e seus aditivos, pasta de documentos, retomada e migração metodológica. Não use para leitura pontual, conversão de arquivo ou redação direta de peça sem análise e plano aprovados.
 ---
 
 # Iniciar análise documental
@@ -13,12 +13,17 @@ se houver divergência, esses arquivos vencem.
 
 ## Antes de agir
 
-Identifique o ambiente e leia **somente uma** referência:
+Identifique o ambiente e leia **somente uma** referência de ambiente:
 
 - Codex Desktop ou CLI: [references/codex.md](references/codex.md)
 - Claude Code ou Cowork: [references/claude-code.md](references/claude-code.md)
 
 Em outro ambiente, siga o fluxo comum abaixo sem inventar comandos de barra.
+
+Para análise jurídica de processo, contrato ou aditivos, leia também
+[references/juridico-contratual.md](references/juridico-contratual.md). A referência
+especializa a análise; não cria outro caso, índice ou memória paralela. Na retomada,
+primeiro os dois checkpoints; só depois essa referência quando pertinente à tarefa.
 
 ## Escolher o cenário
 
