@@ -1,5 +1,0 @@
-schema_version: "1.1"
-name: juridico-atos-distintos
-expected_outcome: |
-  Distinguir sentença modificada, recurso patrimonial, envio sem cumprimento,
-  pedido sem julgamento e ausência de marcos para calcular prazo; citar fontes.
